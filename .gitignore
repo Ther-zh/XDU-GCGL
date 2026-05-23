@@ -1,0 +1,19 @@
+# 课件 PDF 体积大，不纳入仓库（笔记已覆盖）
+*.pdf
+*.pptx
+*.jpg
+*.jpeg
+*.png
+
+# 本地/系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# 可选：合并稿可由 CI/脚本生成，减小仓库
+# 工程概论完整笔记.md
