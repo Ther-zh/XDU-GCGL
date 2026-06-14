@@ -4,6 +4,7 @@
 *.jpg
 *.jpeg
 *.png
+!课后题/*.png
 
 # 本地/系统
 .DS_Store
