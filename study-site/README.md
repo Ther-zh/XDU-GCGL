@@ -53,6 +53,6 @@ python build.py
 
 | 文件 | 作用 |
 |------|------|
-| `build.py` | 从 `../notes/` 生成 `data/chapters.js` |
+| `build.py` | 从 `../notes/`、`../课后题/` 生成 `data/chapters.js` 与题目截图 |
 | `data/chapters.js` | 内嵌章节（CI 与本地 build 都会生成） |
 | `index.html` | 入口 |

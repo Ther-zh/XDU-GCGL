@@ -2,11 +2,15 @@
 """Build study-site data for offline file:// (double-click index.html)."""
 import json
 import re
+import shutil
 from pathlib import Path
 
 SITE_DIR = Path(__file__).resolve().parent
 ROOT = SITE_DIR.parent
 NOTES = ROOT / "notes"
+HOMEWORK_DIR = ROOT / "课后题"
+HOMEWORK_MD = HOMEWORK_DIR / "工程概论课后题完整整理.md"
+HOMEWORK_ASSETS_DST = SITE_DIR / "assets" / "homework"
 DATA_DIR = SITE_DIR / "data"
 OUT_JSON = DATA_DIR / "chapters.json"
 OUT_JS = DATA_DIR / "chapters.js"
@@ -41,20 +45,20 @@ IMPORTANCE = {
     "13": "★★★",
     "14": "★★★",
     "15": "★★★",
-}
-
-LINK_MAP = {
-    "../课程整体要求.md": "#overview",
-    "./课程整体要求.md": "#overview",
-    "./08-工程经济决策基础.md": "#08",
-    "../课程整体要求.md": "#overview",
+    "hw": "★★★",
 }
 
 
-def extract_meta(text: str) -> dict:
+def extract_meta(text: str, *, is_homework: bool = False) -> dict:
     m = re.search(r"建议复习[：:]\s*([^\n|]+)", text)
     duration = m.group(1).strip() if m else ""
     tags = []
+    if is_homework:
+        tags.append("习题")
+        if re.search(r"第[78]章|第1[12]章|NPV|IRR|挣值|关键路径|决策树", text[:4000]):
+            tags.append("计算")
+        return {"duration": duration, "tags": tags}
+
     if "必算" in text or "★★★" in text[:800]:
         tags.append("计算")
     if "案例" in text[:1200] or "挑战者" in text:
@@ -76,6 +80,32 @@ def fix_markdown_links(md: str) -> str:
     return md
 
 
+def fix_homework_markdown(md: str) -> str:
+    """Rewrite image paths and demote chapter headings for in-page TOC."""
+    md = re.sub(
+        r"!\[([^\]]*)\]\(\./([^)]+)\)",
+        r"![\1](assets/homework/\2)",
+        md,
+    )
+    md = re.sub(
+        r"^# ((?:绪论|第\d+章).*)$",
+        r"## \1",
+        md,
+        flags=re.MULTILINE,
+    )
+    return md
+
+
+def copy_homework_images() -> int:
+    HOMEWORK_ASSETS_DST.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for src in sorted(HOMEWORK_DIR.glob("*.png")):
+        dst = HOMEWORK_ASSETS_DST / src.name
+        shutil.copy2(src, dst)
+        copied += 1
+    return copied
+
+
 def main():
     chapters = []
     for cid, title, path in CHAPTER_FILES:
@@ -87,12 +117,31 @@ def main():
             {
                 "id": cid,
                 "title": title,
+                "section": "notes",
                 "importance": IMPORTANCE.get(cid, "★★☆"),
                 "duration": meta["duration"],
                 "tags": meta["tags"],
                 "markdown": content,
             }
         )
+
+    if not HOMEWORK_MD.exists():
+        raise FileNotFoundError(HOMEWORK_MD)
+
+    img_count = copy_homework_images()
+    hw_content = fix_homework_markdown(HOMEWORK_MD.read_text(encoding="utf-8"))
+    hw_meta = extract_meta(hw_content, is_homework=True)
+    chapters.append(
+        {
+            "id": "hw",
+            "title": "课后习题（完整整理）",
+            "section": "homework",
+            "importance": IMPORTANCE["hw"],
+            "duration": "",
+            "tags": hw_meta["tags"],
+            "markdown": hw_content,
+        }
+    )
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(chapters, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -103,7 +152,10 @@ def main():
         "window.GONGCHENG_CHAPTERS = " + js_body + ";\n",
         encoding="utf-8",
     )
-    print(f"Built {OUT_JSON} and {OUT_JS} ({len(chapters)} chapters)")
+    print(
+        f"Built {OUT_JSON} and {OUT_JS} "
+        f"({len(chapters)} chapters, {img_count} homework images)"
+    )
 
 
 if __name__ == "__main__":

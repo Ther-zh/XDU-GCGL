@@ -72,43 +72,76 @@
     }
 
     contentEl.querySelectorAll("h2").forEach((h) => {
-      if (/考点|公式|例题|案例|小结/.test(h.textContent)) {
+      if (/考点|公式|例题|案例|小结|习题|原题/.test(h.textContent)) {
         h.style.borderBottomColor = "var(--star)";
       }
     });
+
+    contentEl.querySelectorAll("h3").forEach((h) => {
+      if (/^习题\s*\d+/.test(h.textContent.trim())) {
+        h.classList.add("hw-question");
+      }
+    });
+  }
+
+  function renderTags(tags) {
+    if (!tags || !tags.length) return "";
+    return tags
+      .map((tag) => {
+        const cls = tag === "计算" ? "tag-calc" : tag === "习题" ? "tag-hw" : "tag-note";
+        return '<span class="' + cls + '">' + tag + "</span>";
+      })
+      .join("");
+  }
+
+  function appendNavItem(ch, q) {
+    const text = (ch.title + ch.markdown).toLowerCase();
+    const match = !q || text.includes(q);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "nav-item" + (ch.id === currentId ? " active" : "") + (match ? "" : " hidden");
+
+    btn.innerHTML =
+      "<span>" + ch.title + renderTags(ch.tags) + "</span>" +
+      '<span class="meta">' +
+      ch.importance +
+      (ch.duration ? " · " + ch.duration : "") +
+      "</span>";
+
+    btn.addEventListener("click", () => {
+      showChapter(ch.id);
+      sidebar.classList.remove("open");
+      location.hash = ch.id;
+    });
+    navEl.appendChild(btn);
   }
 
   function renderNav(filter) {
     const q = (filter || "").trim().toLowerCase();
     navEl.innerHTML = "";
 
-    chapters.forEach((ch) => {
-      const text = (ch.title + ch.markdown).toLowerCase();
-      const match = !q || text.includes(q);
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className =
-        "nav-item" + (ch.id === currentId ? " active" : "") + (match ? "" : " hidden");
+    const sections = [
+      { key: "notes", label: "课程笔记" },
+      { key: "homework", label: "课后习题" },
+    ];
 
-      const tagHtml = ch.tags && ch.tags.includes("计算")
-        ? '<span class="tag-calc">计算</span>'
-        : "";
-      btn.innerHTML =
-        "<span>" +
-        ch.title +
-        tagHtml +
-        "</span>" +
-        '<span class="meta">' +
-        ch.importance +
-        (ch.duration ? " · " + ch.duration : "") +
-        "</span>";
+    sections.forEach((section) => {
+      const items = chapters.filter((ch) => (ch.section || "notes") === section.key);
+      if (!items.length) return;
 
-      btn.addEventListener("click", () => {
-        showChapter(ch.id);
-        sidebar.classList.remove("open");
-        location.hash = ch.id;
+      const visible = items.some((ch) => {
+        const text = (ch.title + ch.markdown).toLowerCase();
+        return !q || text.includes(q);
       });
-      navEl.appendChild(btn);
+      if (!visible) return;
+
+      const label = document.createElement("div");
+      label.className = "nav-section";
+      label.textContent = section.label;
+      navEl.appendChild(label);
+
+      items.forEach((ch) => appendNavItem(ch, q));
     });
   }
 
